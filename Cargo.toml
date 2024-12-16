@@ -1,0 +1,18 @@
+[package]
+name = "rcqs"
+description = "Catalog Queue System for Redis."
+version = "0.1.0"
+authors = ["Omar Zabala-Ferrera <ozf-dev@pm.me>"]
+documentation = "https://docs.rs/rcqs"
+readme = "README.md"
+repository = "https://github.com/ozabalaferrera/rcqs"
+exclude = [
+    ".github/*",
+    ".vscode/*"
+]
+categories = ["database", "data-structures"]
+resolver = "2"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
