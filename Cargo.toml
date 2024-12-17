@@ -23,3 +23,6 @@ redis-macros="0.4"
 serde = { version = "1.0" }
 serde_json = { version = "1.0" }
 uuid = { version = "1.11", features = ["v4", "serde"] }
+
+[dev-dependencies]
+test-with = { version = "0.14", default-features = false, features = ["resource"] }

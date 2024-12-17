@@ -17,7 +17,7 @@ where
     checkout_expirations_key: String,
     default_item_expiration: Expiration,
     default_checkout_expiration: Expiration,
-    _item_type: PhantomData<I>,
+    _item_type: PhantomData<CatalogItem<I>>,
 }
 
 impl<I> Catalog<I>
@@ -43,7 +43,7 @@ where
             checkout_expirations_key,
             default_item_expiration: default_ttl,
             default_checkout_expiration: default_timeout,
-            _item_type: PhantomData::<I>,
+            _item_type: PhantomData::<CatalogItem<I>>,
         }
     }
 
