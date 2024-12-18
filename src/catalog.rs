@@ -85,7 +85,8 @@ where
             self.item_expirations_key,
             self.checkout_expirations_key,
         ];
-        redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc))
+        let n: (i64,) = redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc))?;
+        RedisResult::Ok(n.0)
     }
 
     fn register_with_expiration_f64_timestamp<C>(
