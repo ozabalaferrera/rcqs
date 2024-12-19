@@ -19,10 +19,11 @@ mod with_client {
         let item: CatalogItem<String> = test_utils::random_item();
 
         let (z, h) = catalog.register(&mut client, item)?;
-        assert_eq!(z, h);
+        assert_eq!(z, 1, "one item set entry");
+        assert_eq!(z, h, "equal item set and catalog hash entry count");
 
         let n = catalog.destroy_catalog(&mut client)?;
-        assert_eq!(n, 2);
+        assert_eq!(n, 2, "two keys deleted");
 
         Ok(())
     }
@@ -42,6 +43,11 @@ mod with_client {
             .expect("ok result from redis")
             .expect("item with ID as registered");
         assert_eq!(item.id(), id, "registered and fetch item IDs should match");
+
+        let (zi, zc, h) = catalog.delete_by_id(&mut client, id)?;
+        assert_eq!(zi, 0, "zero expiration set entry");
+        assert_eq!(zc, 1, "one checkout set entry");
+        assert_eq!(h, 1, "one catalog hash entry");
 
         assert!(
             catalog
@@ -78,6 +84,11 @@ mod with_client {
             .expect("item with ID as registered");
         assert_eq!(item.id(), id, "registered and fetch item IDs should match");
 
+        let (zi, zc, h) = catalog.delete_by_id(&mut client, id)?;
+        assert!(zi == 0, "zero expiration set entry");
+        assert!(zc == 1, "one checkout set entry");
+        assert!(h == 1, "one catalog hash entry");
+
         assert!(
             catalog
                 .checkout_by_id(&mut client, id)
@@ -108,12 +119,12 @@ mod with_client {
         assert_eq!(z, h);
 
         let (zi, zc, h) = catalog.delete_by_id(&mut client, id)?;
-        assert!(zi == 1);
-        assert!(zc == 0);
-        assert!(h == 1);
+        assert!(zi == 1, "one expiration set entry");
+        assert!(zc == 0, "zero checkout set entry");
+        assert!(h == 1, "one catalog hash entry");
 
         let n = catalog.destroy_catalog(&mut client)?;
-        assert_eq!(n, 0);
+        assert_eq!(n, 0, "zero keys deleted");
 
         Ok(())
     }
@@ -131,12 +142,12 @@ mod with_client {
         assert!(h);
 
         let (zi, zc, h) = catalog.delete_multiple_by_id(&mut client, &ids)?;
-        assert!(zi == CNT);
-        assert!(zc == 0);
-        assert!(h == CNT);
+        assert!(zi == CNT, "{} expiration set entry", CNT);
+        assert!(zc == 0, "zero checkout set entry");
+        assert!(h == CNT, "{} catalog hash entry", CNT);
 
         let n = catalog.destroy_catalog(&mut client)?;
-        assert_eq!(n, 0);
+        assert_eq!(n, 0, "zero keys deleted");
 
         Ok(())
     }
