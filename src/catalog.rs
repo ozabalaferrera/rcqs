@@ -33,7 +33,7 @@ where
         let catalog_ns = format!("{}:{}", root_namespace, name);
         let catalog_key = format!("{}:catalog", catalog_ns);
         let item_expirations_key = format!("{}:item-expirations", catalog_ns);
-        let checkout_expirations_key = format!("{}checkout-timeouts", catalog_ns);
+        let checkout_expirations_key = format!("{}:checkout-timeouts", catalog_ns);
 
         Self {
             root_namespace,
@@ -222,17 +222,23 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let (item_id, _item_expiration): (String, f64) =
-                trc.zpopmin(&self.item_expirations_key, 1)?;
-            let queried_item: Option<CatalogItem<I>> = trc.hget(&self.catalog_key, &item_id)?;
+            let items_scores: Vec<(String, f64)> = trc.zpopmin(&self.item_expirations_key, 1)?;
 
-            if queried_item.is_some() {
-                let _: (i64,) = pipe
-                    .zadd(&self.checkout_expirations_key, item_id, timeout_on)
-                    .query(trc)?;
-            }
+            let result = if let Some((item_id, _item_expiration)) = items_scores.first() {
+                let queried_item: Option<CatalogItem<I>> = trc.hget(&self.catalog_key, item_id)?;
 
-            RedisResult::Ok(Some(queried_item))
+                if queried_item.is_some() {
+                    let _: (i64,) = pipe
+                        .zadd(&self.checkout_expirations_key, item_id, timeout_on)
+                        .query(trc)?;
+                }
+
+                queried_item
+            } else {
+                None
+            };
+
+            RedisResult::Ok(Some(result))
         })
     }
 
@@ -340,7 +346,11 @@ where
         let item_id = id.to_string();
 
         redis::transaction(con, keys, |trc, pipe| {
-            let _: i64 = trc.zrem(&self.item_expirations_key, &item_id)?;
+            let n: i64 = trc.zrem(&self.item_expirations_key, &item_id)?;
+            if n == 0 {
+                return RedisResult::Ok(Some(None));
+            }
+
             let queried_item: Option<CatalogItem<I>> = trc.hget(&self.catalog_key, &item_id)?;
             if queried_item.is_some() {
                 let _: (i64,) = pipe
@@ -353,7 +363,7 @@ where
     }
 
     /// Checkout item by ID using the catalog's default checkout timeout.
-    pub fn checkout_by_id<C, T>(&self, con: &mut C, id: Uuid) -> RedisResult<Option<CatalogItem<I>>>
+    pub fn checkout_by_id<C>(&self, con: &mut C, id: Uuid) -> RedisResult<Option<CatalogItem<I>>>
     where
         C: ConnectionLike,
     {
@@ -362,7 +372,7 @@ where
     }
 
     /// Checkout item by ID using the provided checkout timeout.
-    pub fn checkout_by_id_with_expiration<C, T>(
+    pub fn checkout_by_id_with_expiration<C>(
         &self,
         con: &mut C,
         id: Uuid,
