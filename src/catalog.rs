@@ -416,8 +416,13 @@ where
                 let found_items: Vec<CatalogItem<I>> =
                     queried_items.into_iter().flatten().collect();
                 if !found_items.is_empty() {
+                    let scores_ids: Vec<(f64, String)> = found_items
+                        .iter()
+                        .map(|item| (timeout_on, item.id.to_string()))
+                        .collect();
+
                     let _: (i64,) = pipe
-                        .zadd(&self.checkout_expirations_key, &found_ids, timeout_on)
+                        .zadd_multiple(&self.checkout_expirations_key, &scores_ids)
                         .query(trc)?;
                 }
 

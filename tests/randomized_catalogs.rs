@@ -4,7 +4,7 @@ mod with_client {
 
     use rcqs::{Catalog, CatalogItem};
     use redis::Client;
-    use std::error::Error;
+    use std::{error::Error, num::NonZero};
     use uuid::Uuid;
 
     fn redis_client() -> Client {
@@ -36,7 +36,7 @@ mod with_client {
         let id = item.id();
 
         let (z, h) = catalog.register(&mut client, item)?;
-        assert_eq!(z, h);
+        assert_eq!(z, h, "equal item set and catalog hash entry count");
 
         let item = catalog
             .checkout(&mut client)
@@ -76,7 +76,7 @@ mod with_client {
         let id = item.id();
 
         let (z, h) = catalog.register(&mut client, item)?;
-        assert_eq!(z, h);
+        assert_eq!(z, h, "equal item set and catalog hash entry count");
 
         let item = catalog
             .checkout_by_id(&mut client, id)
@@ -109,6 +109,80 @@ mod with_client {
     }
 
     #[test]
+    fn register_and_checkout_multiple_items() -> Result<(), Box<dyn Error>> {
+        const CNT: i64 = 100;
+
+        let mut client = redis_client();
+        let catalog: Catalog<String> = test_utils::random_catalog();
+        let items: Vec<CatalogItem<String>> = (0..CNT).map(|_| test_utils::random_item()).collect();
+        let ids: Vec<Uuid> = items.iter().map(|item| item.id()).collect();
+
+        let (z, h) = catalog.register_multiple(&mut client, &items)?;
+        assert_eq!(z, CNT, "{} checkout set entries", CNT);
+        assert!(h, "true catalog hash entry result");
+
+        let items_checked_out = catalog
+            .checkout_multiple(&mut client, NonZero::new(CNT as usize).unwrap())
+            .expect("ok result from redis");
+
+        assert_eq!(
+            items.len(),
+            items_checked_out.len(),
+            "registered and fetched item count should match"
+        );
+
+        let found = items_checked_out
+            .iter()
+            .filter(|item| ids.contains(&item.id()))
+            .count();
+
+        assert_eq!(
+            items.len(),
+            found,
+            "registered and fetched item IDs should match"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn register_and_checkout_multiple_items_by_id() -> Result<(), Box<dyn Error>> {
+        const CNT: i64 = 100;
+        let mut client = redis_client();
+        let catalog: Catalog<String> = test_utils::random_catalog();
+        let items: Vec<CatalogItem<String>> = (0..CNT).map(|_| test_utils::random_item()).collect();
+        let ids: Vec<Uuid> = items.iter().map(|item| item.id()).collect();
+
+        let (z, h) = catalog.register_multiple(&mut client, &items)?;
+        assert_eq!(z, CNT, "{} checkout set entries", CNT);
+        assert!(h, "true catalog hash entry result");
+
+        let items_checked_out = catalog
+            .checkout_multiple_by_id(&mut client, &ids)
+            .expect("ok result from redis");
+
+        assert_eq!(
+            items.len(),
+            items_checked_out.len(),
+            "registered and fetched item count should match"
+        );
+
+        let matching = items
+            .iter()
+            .zip(items_checked_out.iter())
+            .filter(|&(a, b)| a.id() == b.id())
+            .count();
+
+        assert_eq!(
+            items.len(),
+            matching,
+            "registered and fetched item IDs should match"
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn register_and_delete_item() -> Result<(), Box<dyn Error>> {
         let mut client = redis_client();
         let catalog: Catalog<String> = test_utils::random_catalog();
@@ -116,7 +190,7 @@ mod with_client {
         let id = item.id();
 
         let (z, h) = catalog.register(&mut client, item)?;
-        assert_eq!(z, h);
+        assert_eq!(z, h, "equal item set and catalog hash entry count");
 
         let (zi, zc, h) = catalog.delete_by_id(&mut client, id)?;
         assert!(zi == 1, "one expiration set entry");
@@ -138,8 +212,8 @@ mod with_client {
         let ids: Vec<Uuid> = items.iter().map(|item| item.id()).collect();
 
         let (z, h) = catalog.register_multiple(&mut client, &items)?;
-        assert_eq!(z, CNT);
-        assert!(h);
+        assert_eq!(z, CNT, "{} checkout set entries", CNT);
+        assert!(h, "true catalog hash entry result");
 
         let (zi, zc, h) = catalog.delete_multiple_by_id(&mut client, &ids)?;
         assert!(zi == CNT, "{} expiration set entry", CNT);
