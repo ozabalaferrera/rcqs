@@ -1,5 +1,6 @@
 use super::{expire::Expiration, item::CatalogItem};
 use chrono::Utc;
+use core::f64;
 use redis::{Commands, ConnectionLike, RedisResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData, num::NonZero};
@@ -404,6 +405,7 @@ where
         redis::transaction(con, keys, |trc, pipe| {
             let scores: Vec<Option<f64>> =
                 trc.zscore_multiple(&self.item_expirations_key, &item_ids)?;
+            let n: i64 = trc.zrem(&self.item_expirations_key, &item_ids)?;
             let found_ids: Vec<&String> = item_ids
                 .iter()
                 .zip(scores.iter())
@@ -504,7 +506,8 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let item_ids: Vec<String> = trc.zrangebyscore(&self.item_expirations_key, 0, ts)?;
+            let item_ids: Vec<String> =
+                trc.zrangebyscore(&self.item_expirations_key, f64::NEG_INFINITY, ts)?;
 
             let result = if !item_ids.is_empty() {
                 let items: Vec<CatalogItem<I>> = trc.hget(&self.catalog_key, &item_ids)?;
@@ -540,7 +543,7 @@ where
 
         redis::transaction(con, keys, |trc, pipe| {
             let checked_out_item_ids: Vec<String> =
-                trc.zrangebyscore(&self.checkout_expirations_key, 0, ts)?;
+                trc.zrangebyscore(&self.checkout_expirations_key, f64::NEG_INFINITY, ts)?;
 
             let result = if !checked_out_item_ids.is_empty() {
                 let items: Vec<CatalogItem<I>> =

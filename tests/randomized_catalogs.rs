@@ -115,7 +115,7 @@ mod with_client {
         let mut client = redis_client();
         let catalog: Catalog<String> = test_utils::random_catalog();
         let items: Vec<CatalogItem<String>> = (0..CNT).map(|_| test_utils::random_item()).collect();
-        let ids: Vec<Uuid> = items.iter().map(|item| item.id()).collect();
+        let mut ids: Vec<Uuid> = items.iter().map(|item| item.id()).collect();
 
         let (z, h) = catalog.register_multiple(&mut client, &items)?;
         assert_eq!(z, CNT, "{} checkout set entries", CNT);
@@ -124,6 +124,8 @@ mod with_client {
         let items_checked_out = catalog
             .checkout_multiple(&mut client, NonZero::new(CNT as usize).unwrap())
             .expect("ok result from redis");
+        let mut ids_checked_out: Vec<Uuid> =
+            items_checked_out.iter().map(|item| item.id()).collect();
 
         assert_eq!(
             items.len(),
@@ -131,16 +133,23 @@ mod with_client {
             "registered and fetched item count should match"
         );
 
-        let found = items_checked_out
+        ids.sort();
+        ids_checked_out.sort();
+
+        let matching = ids
             .iter()
-            .filter(|item| ids.contains(&item.id()))
+            .zip(ids_checked_out.iter())
+            .filter(|&(id, id_checked_out)| *id == *id_checked_out)
             .count();
 
         assert_eq!(
             items.len(),
-            found,
+            matching,
             "registered and fetched item IDs should match"
         );
+
+        let n = catalog.destroy_catalog(&mut client)?;
+        assert_eq!(n, 2, "two keys deleted");
 
         Ok(())
     }
@@ -167,10 +176,10 @@ mod with_client {
             "registered and fetched item count should match"
         );
 
-        let matching = items
+        let matching = ids
             .iter()
             .zip(items_checked_out.iter())
-            .filter(|&(a, b)| a.id() == b.id())
+            .filter(|&(id, item)| *id == item.id())
             .count();
 
         assert_eq!(
@@ -178,6 +187,9 @@ mod with_client {
             matching,
             "registered and fetched item IDs should match"
         );
+
+        let n = catalog.destroy_catalog(&mut client)?;
+        assert_eq!(n, 2, "two keys deleted");
 
         Ok(())
     }
