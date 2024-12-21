@@ -2,7 +2,7 @@
 mod with_client {
     extern crate test_utils;
 
-    use rcqs::{Catalog, CatalogItem};
+    use rcqs::{Catalog, CatalogItem, Expiration};
     use std::error::Error;
     use uuid::Uuid;
 
@@ -26,7 +26,8 @@ mod with_client {
     fn delete_by_id() -> Result<(), Box<dyn Error>> {
         let mut client = test_utils::redis_client();
         let catalog: Catalog<String> = test_utils::random_catalog();
-        let item: CatalogItem<String> = test_utils::random_item();
+        let item: CatalogItem<String> =
+            test_utils::random_item_with_expiration(Expiration::from_f64_timestamp(f64::INFINITY));
         let id = item.id();
 
         let (z, h) = catalog.register(&mut client, item)?;
@@ -47,7 +48,8 @@ mod with_client {
     fn delete_and_get_by_id() -> Result<(), Box<dyn Error>> {
         let mut client = test_utils::redis_client();
         let catalog: Catalog<String> = test_utils::random_catalog();
-        let item: CatalogItem<String> = test_utils::random_item();
+        let item: CatalogItem<String> =
+            test_utils::random_item_with_expiration(Expiration::from_f64_ttl(f64::INFINITY));
         let id = item.id();
 
         let (z, h) = catalog.register(&mut client, item)?;

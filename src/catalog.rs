@@ -373,7 +373,7 @@ where
     }
 
     /// Checkout item by ID using the provided checkout timeout.
-    pub fn checkout_by_id_with_expiration<C>(
+    pub fn checkout_by_id_with_timeout<C>(
         &self,
         con: &mut C,
         id: Uuid,
@@ -451,7 +451,7 @@ where
     }
 
     /// Checkout items by ID using the provided checkout timeout.
-    pub fn checkout_multiple_by_id_with_expiration<C>(
+    pub fn checkout_multiple_by_id_with_timeout<C>(
         &self,
         con: &mut C,
         ids: &[Uuid],
@@ -561,7 +561,6 @@ where
 
                 if !expirations.is_empty() {
                     pipe.zadd_multiple(&self.item_expirations_key, &expirations)
-                        .ignore()
                         .zrem(&self.checkout_expirations_key, &checked_out_item_ids)
                         .query(trc)?
                 } else {
@@ -579,7 +578,7 @@ where
     ///
     /// If item is somehow missing an expiration timestamp, it will be set to
     /// the catalog's default timeout.
-    pub fn relinquish_by_id<C>(&self, con: &mut C, id: Uuid) -> RedisResult<i64>
+    pub fn relinquish_by_id<C>(&self, con: &mut C, id: Uuid) -> RedisResult<(i64, i64)>
     where
         C: ConnectionLike,
     {
@@ -591,18 +590,18 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let n: i64 = trc.zrem(&self.checkout_expirations_key, &id)?;
-            let result = if n == 1 {
+            let zc: i64 = trc.zrem(&self.checkout_expirations_key, &id)?;
+            let result = if zc == 1 {
                 let item: CatalogItem<I> = trc.hget(&self.catalog_key, &id)?;
                 let expires_on = item
                     .expires_on
                     .unwrap_or(self.default_item_expiration.as_f64_timestamp());
-                let n: (i64,) = pipe
+                let zi: (i64,) = pipe
                     .zadd(&self.item_expirations_key, &id, expires_on)
                     .query(trc)?;
-                n.0
+                (zc, zi.0)
             } else {
-                0
+                (0, 0)
             };
 
             RedisResult::Ok(Some(result))

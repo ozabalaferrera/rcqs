@@ -19,7 +19,7 @@ mod with_client {
         let item = catalog
             .checkout(&mut client)
             .expect("ok result from redis")
-            .expect("item with ID as registered");
+            .expect("registered and checked out item");
         assert_eq!(
             item.id(),
             id,
@@ -46,6 +46,9 @@ mod with_client {
                 .is_none(),
             "should have no items left to checkout"
         );
+
+        let n = catalog.destroy_catalog(&mut client)?;
+        assert_eq!(n, 0, "zero keys deleted");
 
         Ok(())
     }
@@ -86,6 +89,9 @@ mod with_client {
                 .is_none(),
             "should have no items left to checkout"
         );
+
+        let n = catalog.destroy_catalog(&mut client)?;
+        assert_eq!(n, 0, "zero keys deleted");
 
         Ok(())
     }
