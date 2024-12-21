@@ -3,7 +3,9 @@ use redis_macros::{FromRedisValue, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, FromRedisValue, ToRedisArgs)]
+#[derive(
+    Copy, Clone, Debug, Default, PartialEq, Serialize, Deserialize, FromRedisValue, ToRedisArgs,
+)]
 #[serde(untagged)]
 pub enum Expiration {
     #[default]

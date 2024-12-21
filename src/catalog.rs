@@ -405,7 +405,7 @@ where
         redis::transaction(con, keys, |trc, pipe| {
             let scores: Vec<Option<f64>> =
                 trc.zscore_multiple(&self.item_expirations_key, &item_ids)?;
-            let n: i64 = trc.zrem(&self.item_expirations_key, &item_ids)?;
+            let _: i64 = trc.zrem(&self.item_expirations_key, &item_ids)?;
             let found_ids: Vec<&String> = item_ids
                 .iter()
                 .zip(scores.iter())

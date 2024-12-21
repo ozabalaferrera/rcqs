@@ -258,6 +258,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "constcat"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4938185353434999ef52c81753c8cca8955ed38042fc29913db3751916f3b7ab"
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -943,6 +949,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "chrono",
+ "constcat",
  "redis 0.27.6",
  "redis-macros",
  "serde",
@@ -1266,6 +1273,7 @@ name = "test-utils"
 version = "0.1.0"
 dependencies = [
  "rcqs",
+ "redis 0.27.6",
  "serde",
  "uuid",
 ]
