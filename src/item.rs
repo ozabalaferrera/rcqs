@@ -11,9 +11,6 @@ pub struct CatalogItem<I> {
     pub(crate) contents: I,
     pub(crate) created_on: i64,
     pub(crate) expires_on: Option<f64>,
-    pub(crate) first_checkout_on: Option<i64>,
-    pub(crate) latest_checkout_on: Option<i64>,
-    pub(crate) checkout_count: i64,
 }
 
 impl<I> CatalogItem<I>
@@ -26,9 +23,6 @@ where
             contents,
             created_on: Utc::now().timestamp(),
             expires_on: None,
-            checkout_count: 0,
-            first_checkout_on: None,
-            latest_checkout_on: None,
         }
     }
 
@@ -38,9 +32,6 @@ where
             contents,
             created_on: Utc::now().timestamp(),
             expires_on: Some(expiration.as_f64_timestamp()),
-            checkout_count: 0,
-            first_checkout_on: None,
-            latest_checkout_on: None,
         }
     }
 
@@ -62,19 +53,5 @@ where
 
     pub fn created_on(&self) -> Option<chrono::DateTime<Utc>> {
         Utc.timestamp_opt(self.created_on, 0).single()
-    }
-
-    pub fn first_checkout_on(&self) -> Option<chrono::DateTime<Utc>> {
-        self.first_checkout_on
-            .and_then(|v| Utc.timestamp_opt(v, 0).single())
-    }
-
-    pub fn latest_checkout_on(&self) -> Option<chrono::DateTime<Utc>> {
-        self.latest_checkout_on
-            .and_then(|v| Utc.timestamp_opt(v, 0).single())
-    }
-
-    pub fn checkout_count(&self) -> i64 {
-        self.checkout_count
     }
 }
