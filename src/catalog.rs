@@ -579,22 +579,18 @@ where
                     .filter_map(|(score, item)| item.as_ref().map(|item| (score, item)))
                     .collect();
 
-                let mut expirations: Vec<(f64, &String)> = Vec::new();
-                for (item_id, item) in &items {
+                let mut expirations: Vec<(f64, &String)> = Vec::with_capacity(items.len());
+                expirations.extend(items.iter().map(|(item_id, item)| {
                     let expires_on = item
                         .expires_on
                         .unwrap_or(self.default_item_expiration.as_f64_timestamp());
-                    expirations.push((expires_on, *item_id));
-                }
+                    (expires_on, *item_id)
+                }));
 
-                if !expirations.is_empty() {
-                    pipe.clear();
-                    pipe.zadd_multiple(&self.item_expirations_key, &expirations)
-                        .zrem(&self.checkout_expirations_key, &checked_out_item_ids)
-                        .query(trc)?
-                } else {
-                    (0, 0)
-                }
+                pipe.clear();
+                pipe.zadd_multiple(&self.item_expirations_key, &expirations)
+                    .zrem(&self.checkout_expirations_key, &checked_out_item_ids)
+                    .query(trc)?
             } else {
                 (0, 0)
             };
