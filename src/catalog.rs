@@ -25,11 +25,13 @@ impl<I> Catalog<I>
 where
     I: Debug + Serialize + DeserializeOwned,
 {
+    /// Create a new [`Catalog`] with its keys at a given root namespace and name.
+    /// Requires a default item expiration and a default checkout expiration.
     pub fn new(
         root_namespace: String,
         name: String,
-        default_ttl: Expiration,
-        default_timeout: Expiration,
+        default_item_expiration: Expiration,
+        default_checkout_expiration: Expiration,
     ) -> Self {
         let catalog_ns = format!("{}:{}", root_namespace, name);
         let catalog_key = format!("{}:catalog", catalog_ns);
@@ -42,37 +44,44 @@ where
             catalog_key,
             item_expirations_key,
             checkout_expirations_key,
-            default_item_expiration: default_ttl,
-            default_checkout_expiration: default_timeout,
+            default_item_expiration,
+            default_checkout_expiration,
             _item_type: PhantomData::<CatalogItem<I>>,
         }
     }
 
+    /// Root namespace or prefix for keys related to this [`Catalog`].
     pub fn root_namespace(&self) -> &str {
         self.root_namespace.as_str()
     }
 
+    /// Name of this [`Catalog`].
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
+    /// Key for hash containing items.
     pub fn catalog_key(&self) -> &str {
         self.catalog_key.as_str()
     }
 
+    /// Key for ordered set containing item expirations.
     pub fn catalog_expirations_key(&self) -> &str {
         self.item_expirations_key.as_str()
     }
 
+    /// Key for ordered set containing checkout expirations.
     pub fn checkouts_expirations_key(&self) -> &str {
         self.checkout_expirations_key.as_str()
     }
 
-    pub fn default_ttl(&self) -> Expiration {
+    /// Default item expiration.
+    pub fn default_item_expiration(&self) -> Expiration {
         self.default_item_expiration
     }
 
-    pub fn default_timeout(&self) -> Expiration {
+    /// Default checkout expiration.
+    pub fn default_checkout_expiration(&self) -> Expiration {
         self.default_checkout_expiration
     }
 
