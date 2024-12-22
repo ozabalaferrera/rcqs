@@ -1,7 +1,7 @@
 use super::{expire::Expiration, item::CatalogItem};
 use chrono::Utc;
 use core::f64;
-use redis::{Commands, ConnectionLike, RedisResult};
+use redis::{ConnectionLike, RedisResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData, num::NonZero};
 use uuid::Uuid;
@@ -86,8 +86,8 @@ where
             self.item_expirations_key,
             self.checkout_expirations_key,
         ];
-        let n: (i64,) = redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc))?;
-        RedisResult::Ok(n.0)
+        let (n,): (i64,) = redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc))?;
+        RedisResult::Ok(n)
     }
 
     fn register_with_expiration_f64_timestamp<C>(
@@ -223,12 +223,16 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let items_scores: Vec<(String, f64)> = trc.zpopmin(&self.item_expirations_key, 1)?;
+            let (items_scores,): (Vec<(String, f64)>,) =
+                pipe.zpopmin(&self.item_expirations_key, 1).query(trc)?;
+            pipe.clear();
 
             let result = if let Some((item_id, _item_expiration)) = items_scores.first() {
-                let queried_item: Option<CatalogItem<I>> = trc.hget(&self.catalog_key, item_id)?;
+                let (queried_item,): (Option<CatalogItem<I>>,) =
+                    pipe.hget(&self.catalog_key, item_id).query(trc)?;
 
                 if queried_item.is_some() {
+                    pipe.clear();
                     let _: (i64,) = pipe
                         .zadd(&self.checkout_expirations_key, item_id, timeout_on)
                         .query(trc)?;
@@ -281,14 +285,17 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let item_expirations: Vec<(String, f64)> =
-                trc.zpopmin(&self.item_expirations_key, count.get() as isize)?;
+            let (item_expirations,): (Vec<(String, f64)>,) = pipe
+                .zpopmin(&self.item_expirations_key, count.get() as isize)
+                .query(trc)?;
+            pipe.clear();
             let item_ids: Vec<String> = item_expirations.into_iter().map(|(id, _)| id).collect();
-            let queried_items: Vec<Option<CatalogItem<I>>> =
-                trc.hget(&self.catalog_key, &item_ids)?;
+            let (queried_items,): (Vec<Option<CatalogItem<I>>>,) =
+                pipe.hget(&self.catalog_key, &item_ids).query(trc)?;
             let found_items: Vec<CatalogItem<I>> = queried_items.into_iter().flatten().collect();
 
             if !found_items.is_empty() {
+                pipe.clear();
                 let scores_ids: Vec<(f64, String)> = found_items
                     .iter()
                     .map(|item| (timeout_on, item.id.to_string()))
@@ -347,13 +354,16 @@ where
         let item_id = id.to_string();
 
         redis::transaction(con, keys, |trc, pipe| {
-            let n: i64 = trc.zrem(&self.item_expirations_key, &item_id)?;
+            let (n,): (i64,) = pipe.zrem(&self.item_expirations_key, &item_id).query(trc)?;
             if n == 0 {
                 return RedisResult::Ok(Some(None));
             }
+            pipe.clear();
 
-            let queried_item: Option<CatalogItem<I>> = trc.hget(&self.catalog_key, &item_id)?;
+            let (queried_item,): (Option<CatalogItem<I>>,) =
+                pipe.hget(&self.catalog_key, &item_id).query(trc)?;
             if queried_item.is_some() {
+                pipe.clear();
                 let _: (i64,) = pipe
                     .zadd(&self.checkout_expirations_key, &item_id, timeout_on)
                     .query(trc)?;
@@ -391,7 +401,7 @@ where
         con: &mut C,
         ids: &[Uuid],
         timeout_on: f64,
-    ) -> RedisResult<Vec<CatalogItem<I>>>
+    ) -> RedisResult<Vec<Option<CatalogItem<I>>>>
     where
         C: ConnectionLike,
     {
@@ -403,9 +413,13 @@ where
         let item_ids: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
 
         redis::transaction(con, keys, |trc, pipe| {
-            let scores: Vec<Option<f64>> =
-                trc.zscore_multiple(&self.item_expirations_key, &item_ids)?;
-            let _: i64 = trc.zrem(&self.item_expirations_key, &item_ids)?;
+            let (scores,): (Vec<Option<f64>>,) = pipe
+                .zscore_multiple(&self.item_expirations_key, &item_ids)
+                .query(trc)?;
+            pipe.clear();
+            let _: (i64,) = pipe
+                .zrem(&self.item_expirations_key, &item_ids)
+                .query(trc)?;
             let found_ids: Vec<&String> = item_ids
                 .iter()
                 .zip(scores.iter())
@@ -413,22 +427,23 @@ where
                 .collect();
 
             let result = if !found_ids.is_empty() {
-                let queried_items: Vec<Option<CatalogItem<I>>> =
-                    trc.hget(&self.catalog_key, &found_ids)?;
-                let found_items: Vec<CatalogItem<I>> =
-                    queried_items.into_iter().flatten().collect();
+                pipe.clear();
+                let (queried_items,): (Vec<Option<CatalogItem<I>>>,) =
+                    pipe.hget(&self.catalog_key, &found_ids).query(trc)?;
+                let found_items: Vec<&CatalogItem<I>> = queried_items.iter().flatten().collect();
                 if !found_items.is_empty() {
                     let scores_ids: Vec<(f64, String)> = found_items
                         .iter()
                         .map(|item| (timeout_on, item.id.to_string()))
                         .collect();
 
+                    pipe.clear();
                     let _: (i64,) = pipe
                         .zadd_multiple(&self.checkout_expirations_key, &scores_ids)
                         .query(trc)?;
                 }
 
-                found_items
+                queried_items
             } else {
                 Vec::new()
             };
@@ -442,7 +457,7 @@ where
         &self,
         con: &mut C,
         ids: &[Uuid],
-    ) -> RedisResult<Vec<CatalogItem<I>>>
+    ) -> RedisResult<Vec<Option<CatalogItem<I>>>>
     where
         C: ConnectionLike,
     {
@@ -456,7 +471,7 @@ where
         con: &mut C,
         ids: &[Uuid],
         timeout: Expiration,
-    ) -> RedisResult<Vec<CatalogItem<I>>>
+    ) -> RedisResult<Vec<Option<CatalogItem<I>>>>
     where
         C: ConnectionLike,
     {
@@ -478,9 +493,12 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let item_ids: Vec<String> = trc.zrangebyscore(&self.item_expirations_key, 0, ts)?;
+            let (item_ids,): (Vec<String>,) = pipe
+                .zrangebyscore(&self.item_expirations_key, 0, ts)
+                .query(trc)?;
 
             let result: (i64, i64) = if !item_ids.is_empty() {
+                pipe.clear();
                 pipe.hdel(&self.catalog_key, &item_ids)
                     .zrem(&self.item_expirations_key, &item_ids)
                     .query(trc)?
@@ -506,11 +524,15 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let item_ids: Vec<String> =
-                trc.zrangebyscore(&self.item_expirations_key, f64::NEG_INFINITY, ts)?;
+            let (item_ids,): (Vec<String>,) = pipe
+                .zrangebyscore(&self.item_expirations_key, f64::NEG_INFINITY, ts)
+                .query(trc)?;
 
             let result = if !item_ids.is_empty() {
-                let items: Vec<CatalogItem<I>> = trc.hget(&self.catalog_key, &item_ids)?;
+                pipe.clear();
+                let (items,): (Vec<CatalogItem<I>>,) =
+                    pipe.hget(&self.catalog_key, &item_ids).query(trc)?;
+                pipe.clear();
                 let _: (i64, i64) = pipe
                     .hdel(&self.catalog_key, &item_ids)
                     .zrem(&self.item_expirations_key, &item_ids)
@@ -542,14 +564,20 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let checked_out_item_ids: Vec<String> =
-                trc.zrangebyscore(&self.checkout_expirations_key, f64::NEG_INFINITY, ts)?;
+            let (checked_out_item_ids,): (Vec<String>,) = pipe
+                .zrangebyscore(&self.checkout_expirations_key, f64::NEG_INFINITY, ts)
+                .query(trc)?;
 
             let result = if !checked_out_item_ids.is_empty() {
-                let items: Vec<CatalogItem<I>> =
-                    trc.hget(&self.catalog_key, &checked_out_item_ids)?;
-                let items: Vec<(&String, &CatalogItem<I>)> =
-                    checked_out_item_ids.iter().zip(items.iter()).collect();
+                pipe.clear();
+                let (items,): (Vec<Option<CatalogItem<I>>>,) = pipe
+                    .hget(&self.catalog_key, &checked_out_item_ids)
+                    .query(trc)?;
+                let items: Vec<(&String, &CatalogItem<I>)> = checked_out_item_ids
+                    .iter()
+                    .zip(items.iter())
+                    .filter_map(|(score, item)| item.as_ref().map(|item| (score, item)))
+                    .collect();
 
                 let mut expirations: Vec<(f64, &String)> = Vec::new();
                 for (item_id, item) in &items {
@@ -560,6 +588,7 @@ where
                 }
 
                 if !expirations.is_empty() {
+                    pipe.clear();
                     pipe.zadd_multiple(&self.item_expirations_key, &expirations)
                         .zrem(&self.checkout_expirations_key, &checked_out_item_ids)
                         .query(trc)?
@@ -590,16 +619,18 @@ where
         ];
 
         redis::transaction(con, keys, |trc, pipe| {
-            let zc: i64 = trc.zrem(&self.checkout_expirations_key, &id)?;
+            let (zc,): (i64,) = pipe.zrem(&self.checkout_expirations_key, &id).query(trc)?;
             let result = if zc == 1 {
-                let item: CatalogItem<I> = trc.hget(&self.catalog_key, &id)?;
+                pipe.clear();
+                let (item,): (CatalogItem<I>,) = pipe.hget(&self.catalog_key, &id).query(trc)?;
+                pipe.clear();
                 let expires_on = item
                     .expires_on
                     .unwrap_or(self.default_item_expiration.as_f64_timestamp());
-                let zi: (i64,) = pipe
+                let (zi,): (i64,) = pipe
                     .zadd(&self.item_expirations_key, &id, expires_on)
                     .query(trc)?;
-                (zc, zi.0)
+                (zc, zi)
             } else {
                 (0, 0)
             };
@@ -686,7 +717,7 @@ where
         &self,
         con: &mut C,
         ids: &[Uuid],
-    ) -> RedisResult<Vec<CatalogItem<I>>>
+    ) -> RedisResult<Vec<Option<CatalogItem<I>>>>
     where
         C: ConnectionLike,
     {
@@ -705,9 +736,8 @@ where
                 .hget(&self.catalog_key, &id_strings)
                 .hdel(&self.catalog_key, &id_strings)
                 .query(trc)?;
-            let found_items = items.into_iter().flatten().collect();
 
-            RedisResult::Ok(Some(found_items))
+            RedisResult::Ok(Some(items))
         })
     }
 }

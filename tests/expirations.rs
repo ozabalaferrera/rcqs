@@ -23,6 +23,10 @@ mod with_client {
         assert_eq!(z, 1, "expired one item");
         assert_eq!(z, h, "equal item set and catalog hash expiration count");
 
+        let (z, h) = catalog.expire_items(&mut client)?;
+        assert_eq!(z, 0, "expired zero items");
+        assert_eq!(z, h, "equal item set and catalog hash expiration count");
+
         let item = catalog.checkout(&mut client).expect("ok result from redis");
         assert!(item.is_none(), "registered item should have expired");
 
@@ -53,6 +57,9 @@ mod with_client {
             id,
             "expired and fetched registered item"
         );
+
+        let items: Vec<CatalogItem<String>> = catalog.expire_and_get_items(&mut client)?;
+        assert_eq!(items.len(), 0, "expired zero items");
 
         let n = catalog.destroy_catalog(&mut client)?;
         assert_eq!(n, 0, "zero keys deleted");
@@ -117,6 +124,10 @@ mod with_client {
         assert_eq!(zi, 1, "one checkout timed out");
         assert_eq!(zi, zc, "item set additions equals checkout set removals");
 
+        let (zi, zc) = catalog.timeout_checkouts(&mut client)?;
+        assert_eq!(zi, 0, "zero checkouts timed out");
+        assert_eq!(zi, zc, "item set additions equals checkout set removals");
+
         let item = catalog
             .checkout_by_id_with_timeout(&mut client, id, TIMEOUT)
             .expect("ok result from redis");
@@ -158,6 +169,10 @@ mod with_client {
 
         let (zi, zc) = catalog.timeout_checkouts(&mut client)?;
         assert_eq!(zi, CNT, "{} checkout timed out", CNT);
+        assert_eq!(zi, zc, "item set additions equals checkout set removals");
+
+        let (zi, zc) = catalog.timeout_checkouts(&mut client)?;
+        assert_eq!(zi, 0, "zero checkouts timed out");
         assert_eq!(zi, zc, "item set additions equals checkout set removals");
 
         let items_checked_out = catalog
@@ -290,6 +305,10 @@ mod with_client {
 
         let (zc, zi) = catalog.relinquish_by_id(&mut client, id)?;
         assert_eq!(zi, 1, "one checkout relinquished");
+        assert_eq!(zi, zc, "item set additions equals checkout set removals");
+
+        let (zc, zi) = catalog.relinquish_by_id(&mut client, id)?;
+        assert_eq!(zi, 0, "zero checkout relinquished");
         assert_eq!(zi, zc, "item set additions equals checkout set removals");
 
         let item = catalog

@@ -166,7 +166,7 @@ mod with_client {
 
         let matching = ids
             .iter()
-            .zip(items_checked_out.iter())
+            .zip(items_checked_out.iter().flatten())
             .filter(|&(id, item)| *id == item.id())
             .count();
 

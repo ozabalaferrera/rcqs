@@ -106,7 +106,11 @@ mod with_client {
         assert!(h, "true catalog hash entry result");
 
         let items_fetched = catalog.delete_and_get_multiple_by_id(&mut client, &ids)?;
-        let mut ids_fetched: Vec<Uuid> = items_fetched.iter().map(|item| item.id()).collect();
+        let mut ids_fetched: Vec<Uuid> = items_fetched
+            .iter()
+            .flatten()
+            .map(|item| item.id())
+            .collect();
 
         assert_eq!(
             items.len(),
