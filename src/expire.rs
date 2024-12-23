@@ -1,12 +1,7 @@
 use chrono::{TimeZone, Utc};
-use redis_macros::{FromRedisValue, ToRedisArgs};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
-#[derive(
-    Copy, Clone, Debug, Default, PartialEq, Serialize, Deserialize, FromRedisValue, ToRedisArgs,
-)]
-#[serde(untagged)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum Expiration {
     #[default]
     Never,
