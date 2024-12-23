@@ -95,8 +95,7 @@ where
             self.item_expirations_key,
             self.checkout_expirations_key,
         ];
-        let (n,): (i64,) = redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc))?;
-        RedisResult::Ok(n)
+        redis::transaction(con, keys, |trc, pipe| pipe.del(keys).query(trc)).map(|(n,)| n)
     }
 
     fn register_with_expiration_f64_timestamp<C>(
@@ -163,15 +162,15 @@ where
             &self.checkout_expirations_key,
         ];
 
-        let mut scores_members = Vec::<(&f64, String)>::with_capacity(items.len());
-        scores_members.extend(
-            expirations
-                .iter()
-                .zip(items.iter().map(|item| item.id.to_string())),
-        );
+        let scores_members: Vec<(&f64, String)> = expirations
+            .iter()
+            .zip(items.iter().map(|item| item.id.to_string()))
+            .collect();
 
-        let mut item_kvs = Vec::<(String, &CatalogItem<I>)>::with_capacity(items.len());
-        item_kvs.extend(items.iter().map(|item| (item.id.to_string(), item)));
+        let item_kvs: Vec<(String, &CatalogItem<I>)> = items
+            .iter()
+            .map(|item| (item.id.to_string(), item))
+            .collect();
 
         redis::transaction(con, keys, move |trc, pipe| {
             let result: RedisResult<(i64, String)> = pipe
@@ -193,12 +192,11 @@ where
         C: ConnectionLike,
     {
         let default_expiration = self.default_item_expiration.as_f64_timestamp();
-        let mut expirations = Vec::<f64>::with_capacity(items.len());
-        expirations.extend(
-            items
-                .iter()
-                .map(|item| item.expires_on.unwrap_or(default_expiration)),
-        );
+        let expirations: Vec<f64> = items
+            .iter()
+            .map(|item| item.expires_on.unwrap_or(default_expiration))
+            .collect();
+
         self.register_multiple_with_f64_timestamp_expirations(con, items, &expirations)
     }
 
@@ -234,9 +232,9 @@ where
         redis::transaction(con, keys, |trc, pipe| {
             let (items_scores,): (Vec<(String, f64)>,) =
                 pipe.zpopmin(&self.item_expirations_key, 1).query(trc)?;
-            pipe.clear();
 
             let result = if let Some((item_id, _item_expiration)) = items_scores.first() {
+                pipe.clear();
                 let (queried_item,): (Option<CatalogItem<I>>,) =
                     pipe.hget(&self.catalog_key, item_id).query(trc)?;
 
@@ -297,8 +295,8 @@ where
             let (item_expirations,): (Vec<(String, f64)>,) = pipe
                 .zpopmin(&self.item_expirations_key, count.get() as isize)
                 .query(trc)?;
-            pipe.clear();
             let item_ids: Vec<String> = item_expirations.into_iter().map(|(id, _)| id).collect();
+            pipe.clear();
             let (queried_items,): (Vec<Option<CatalogItem<I>>>,) =
                 pipe.hget(&self.catalog_key, &item_ids).query(trc)?;
             let found_items: Vec<CatalogItem<I>> = queried_items.into_iter().flatten().collect();
@@ -588,13 +586,15 @@ where
                     .filter_map(|(score, item)| item.as_ref().map(|item| (score, item)))
                     .collect();
 
-                let mut expirations: Vec<(f64, &String)> = Vec::with_capacity(items.len());
-                expirations.extend(items.iter().map(|(item_id, item)| {
-                    let expires_on = item
-                        .expires_on
-                        .unwrap_or(self.default_item_expiration.as_f64_timestamp());
-                    (expires_on, *item_id)
-                }));
+                let expirations: Vec<(f64, &String)> = items
+                    .iter()
+                    .map(|(item_id, item)| {
+                        let expires_on = item
+                            .expires_on
+                            .unwrap_or(self.default_item_expiration.as_f64_timestamp());
+                        (expires_on, *item_id)
+                    })
+                    .collect();
 
                 pipe.clear();
                 pipe.zadd_multiple(&self.item_expirations_key, &expirations)
@@ -701,8 +701,7 @@ where
     where
         C: ConnectionLike,
     {
-        let mut id_strings: Vec<String> = Vec::with_capacity(ids.len());
-        id_strings.extend(ids.iter().map(|id| id.to_string()));
+        let id_strings: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
         let keys = &[
             &self.catalog_key,
             &self.item_expirations_key,
@@ -726,8 +725,7 @@ where
     where
         C: ConnectionLike,
     {
-        let mut id_strings: Vec<String> = Vec::with_capacity(ids.len());
-        id_strings.extend(ids.iter().map(|id| id.to_string()));
+        let id_strings: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
         let keys = &[
             &self.catalog_key,
             &self.item_expirations_key,
