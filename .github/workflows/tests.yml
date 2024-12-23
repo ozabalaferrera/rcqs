@@ -24,6 +24,7 @@ jobs:
         redis-version:
         - 7
     steps:
+    
     - uses: actions/checkout@v2
 
     # # Caching stuff
@@ -35,16 +36,21 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
         key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.toml') }}
+    
     - uses: actions/cache@v2
       with:
         path: |
           target/
         key: ${{ runner.os }}-cargo-target-${{ matrix.toolchain }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml') }}
+    
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.toolchain }}
         target: ${{ matrix.target }}
         override: true
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
 
     - name: Start Redis
       uses: supercharge/redis-github-action@1.7.0
@@ -52,20 +58,25 @@ jobs:
         redis-version: ${{ matrix.redis-version }}
 
     # If glibc, compile and test all
-    - uses: actions-rs/cargo@v1
-      name: "Build"
+    - name: "Build"
+      uses: actions-rs/cargo@v1
       if: matrix.target == 'x86_64-unknown-linux-gnu'
       with:
         command: build
         toolchain: ${{ matrix.toolchain }}
         args: --target ${{ matrix.target }} --all-features
-    - uses: actions-rs/cargo@v1
-      name: "Test"
+
+    - name: Generate code coverage
       if: matrix.target == 'x86_64-unknown-linux-gnu'
-      with:
-        command: test
-        toolchain: ${{ matrix.toolchain }}
-        args: --target ${{ matrix.target }} --all-features
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
       env:
         REDIS_HOST: localhost
         REDIS_PORT: 6379
+
+    - name: Upload coverage to Codecov
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+        files: lcov.info
+        fail_ci_if_error: true
