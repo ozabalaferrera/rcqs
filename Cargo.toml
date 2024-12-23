@@ -1,18 +1,29 @@
 [package]
 name = "rcqs"
 description = "Catalog Queue System for Redis."
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Omar Zabala-Ferrera <ozf-dev@pm.me>"]
 documentation = "https://docs.rs/rcqs"
 readme = "README.md"
 repository = "https://github.com/ozabalaferrera/rcqs"
 exclude = [
     ".github/*",
-    ".vscode/*"
+    ".vscode/*",
+    "docs/"
 ]
 categories = ["database", "data-structures"]
-resolver = "2"
 edition = "2021"
 license = "MIT"
 
 [dependencies]
+chrono = { version = "0.4", features = ["serde"]}
+redis = {version = "0.27.6", features = ["tokio-comp", "serde", "json"] }
+redis-macros="0.4"
+serde = { version = "1.0" }
+serde_json = { version = "1.0" }
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+[dev-dependencies]
+constcat = "0.5"
+test-utils = { path = "test-utils" }
+test-with = { version = "0.14", default-features = false, features = ["resource"] }

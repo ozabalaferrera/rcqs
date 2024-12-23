@@ -1,0 +1,71 @@
+name: Rust Tests
+
+on:
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+
+jobs:
+  build:
+    name: ${{ matrix.toolchain }} / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+        - stable
+        - nightly
+        target:
+        - x86_64-unknown-linux-gnu
+        redis-version:
+        - 7
+    steps:
+    - uses: actions/checkout@v2
+
+    # # Caching stuff
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.toml') }}
+    - uses: actions/cache@v2
+      with:
+        path: |
+          target/
+        key: ${{ runner.os }}-cargo-target-${{ matrix.toolchain }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml') }}
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.toolchain }}
+        target: ${{ matrix.target }}
+        override: true
+
+    - name: Start Redis
+      uses: supercharge/redis-github-action@1.7.0
+      with:
+        redis-version: ${{ matrix.redis-version }}
+
+    # If glibc, compile and test all
+    - uses: actions-rs/cargo@v1
+      name: "Build"
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      with:
+        command: build
+        toolchain: ${{ matrix.toolchain }}
+        args: --target ${{ matrix.target }} --all-features
+    - uses: actions-rs/cargo@v1
+      name: "Test"
+      if: matrix.target == 'x86_64-unknown-linux-gnu'
+      with:
+        command: test
+        toolchain: ${{ matrix.toolchain }}
+        args: --target ${{ matrix.target }} --all-features
+      env:
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
