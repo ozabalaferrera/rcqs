@@ -36,7 +36,7 @@ where
         let catalog_ns = format!("{}:{}", root_namespace, name);
         let catalog_key = format!("{}:catalog", catalog_ns);
         let item_expirations_key = format!("{}:item-expirations", catalog_ns);
-        let checkout_expirations_key = format!("{}:checkout-timeouts", catalog_ns);
+        let checkout_expirations_key = format!("{}:checkout-expirations", catalog_ns);
 
         Self {
             root_namespace,
