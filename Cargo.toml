@@ -18,7 +18,7 @@ license = "MIT"
 [dependencies]
 chrono = { version = "0.4", features = ["serde"]}
 redis = {version = "0.27.6", features = ["tokio-comp", "serde", "json"] }
-redis-macros="0.4"
+redis-macros="0.5"
 serde = { version = "1.0" }
 serde_json = { version = "1.0" }
 uuid = { version = "1.11", features = ["v4", "serde"] }
