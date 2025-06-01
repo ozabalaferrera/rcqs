@@ -866,7 +866,7 @@ version = "0.2.2"
 dependencies = [
  "chrono",
  "constcat",
- "redis 0.29.0",
+ "redis 0.31.0",
  "redis-macros",
  "serde",
  "serde_json",
@@ -897,12 +897,29 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.29.0"
+version = "0.29.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9568894e8bdefd16512bca9e286a9d2abc27773609aa4eb7f428497d64df4373"
+checksum = "1bc42f3a12fd4408ce64d8efef67048a924e543bd35c6591c0447fda9054695f"
 dependencies = [
  "arc-swap",
+ "combine",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "ryu",
+ "sha1_smol",
+ "socket2",
+ "url",
+]
+
+[[package]]
+name = "redis"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bc1ea653e0b2e097db3ebb5b7f678be339620b8041f66b30a308c1d45d36a7f"
+dependencies = [
  "bytes",
+ "cfg-if",
  "combine",
  "futures-util",
  "itoa",
@@ -926,7 +943,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51680b68048d2dc17cc5fa6e4247d9057b3d12ef6d4b4ef4677153d07010fd0e"
 dependencies = [
  "deadpool-redis",
- "redis 0.29.0",
+ "redis 0.29.5",
  "redis-macros-derive",
  "serde",
  "serde_json",
@@ -1072,9 +1089,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.139"
+version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44f86c3acccc9c65b153fe1b85a3be07fe5515274ec9f0653b4a0875731c72a6"
+checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
  "itoa",
  "memchr",
@@ -1189,7 +1206,7 @@ name = "test-utils"
 version = "0.1.0"
 dependencies = [
  "rcqs",
- "redis 0.29.0",
+ "redis 0.29.5",
  "serde",
  "uuid",
 ]
