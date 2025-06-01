@@ -25,10 +25,10 @@ jobs:
         - 7
     steps:
     
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     # # Caching stuff
-    - uses: actions/cache@v2
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -37,7 +37,7 @@ jobs:
           ~/.cargo/git/db/
         key: ${{ runner.os }}-cargo-deps-${{ hashFiles('**/Cargo.toml') }}
     
-    - uses: actions/cache@v2
+    - uses: actions/cache@v4
       with:
         path: |
           target/
