@@ -1,5 +1,7 @@
 /target/
+/test-utils/target/
 /.vscode/
 
 .env
+Cargo.lock
 lcov.info

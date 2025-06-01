@@ -7,10 +7,13 @@ on:
 
 jobs:
   lint:
-    name: Rust
+    name: Formating and Linting
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -22,8 +25,8 @@ jobs:
       with:
         command: fmt
         args: --all -- --check
-    - uses: actions-rs/clippy-check@v1
-      name: "Cargo clippy"
+    - uses: giraffate/clippy-action@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features
+        reporter: 'github-pr-review'
+        clippy_flags: '--all-features'
+        github_token: ${{ secrets.GITHUB_TOKEN }}
