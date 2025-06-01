@@ -3,4 +3,5 @@
 /.vscode/
 
 .env
+Cargo.lock
 lcov.info
