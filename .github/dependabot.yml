@@ -5,3 +5,8 @@ updates:
   schedule:
     interval: "monthly"
   rebase-strategy: "disabled"
+- package-ecosystem: "cargo"
+  directory: "/test-utils/"
+  schedule:
+    interval: "monthly"
+  rebase-strategy: "disabled"
