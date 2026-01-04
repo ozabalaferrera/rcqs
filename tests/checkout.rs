@@ -8,7 +8,7 @@ mod with_client {
 
     #[test]
     fn register_and_checkout_item() -> Result<(), Box<dyn Error>> {
-        let mut client = test_utils::redis_client();
+        let mut client = test_utils::redis_client().get_connection()?;
         let catalog: Catalog<String> = test_utils::random_catalog();
         let item: CatalogItem<String> = test_utils::random_item();
         let id = item.id();

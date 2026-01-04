@@ -298,7 +298,7 @@ where
             let item_ids: Vec<String> = item_expirations.into_iter().map(|(id, _)| id).collect();
             pipe.clear();
             let (queried_items,): (Vec<Option<CatalogItem<I>>>,) =
-                pipe.hget(&self.catalog_key, &item_ids).query(trc)?;
+                pipe.hmget(&self.catalog_key, &item_ids).query(trc)?;
             let found_items: Vec<CatalogItem<I>> = queried_items.into_iter().flatten().collect();
 
             if !found_items.is_empty() {
@@ -436,7 +436,7 @@ where
             let result = if !found_ids.is_empty() {
                 pipe.clear();
                 let (queried_items,): (Vec<Option<CatalogItem<I>>>,) =
-                    pipe.hget(&self.catalog_key, &found_ids).query(trc)?;
+                    pipe.hmget(&self.catalog_key, &found_ids).query(trc)?;
                 let found_items: Vec<&CatalogItem<I>> = queried_items.iter().flatten().collect();
                 if !found_items.is_empty() {
                     let scores_ids: Vec<(f64, String)> = found_items
@@ -538,7 +538,7 @@ where
             let result = if !item_ids.is_empty() {
                 pipe.clear();
                 let (items,): (Vec<CatalogItem<I>>,) =
-                    pipe.hget(&self.catalog_key, &item_ids).query(trc)?;
+                    pipe.hmget(&self.catalog_key, &item_ids).query(trc)?;
                 pipe.clear();
                 let _: (i64, i64) = pipe
                     .hdel(&self.catalog_key, &item_ids)
@@ -578,7 +578,7 @@ where
             let result = if !checked_out_item_ids.is_empty() {
                 pipe.clear();
                 let (items,): (Vec<Option<CatalogItem<I>>>,) = pipe
-                    .hget(&self.catalog_key, &checked_out_item_ids)
+                    .hmget(&self.catalog_key, &checked_out_item_ids)
                     .query(trc)?;
                 let items: Vec<(&String, &CatalogItem<I>)> = checked_out_item_ids
                     .iter()
@@ -736,7 +736,7 @@ where
             let (_, _, items, _): (i64, i64, Vec<Option<CatalogItem<I>>>, i64) = pipe
                 .zrem(&self.item_expirations_key, &id_strings)
                 .zrem(&self.checkout_expirations_key, &id_strings)
-                .hget(&self.catalog_key, &id_strings)
+                .hmget(&self.catalog_key, &id_strings)
                 .hdel(&self.catalog_key, &id_strings)
                 .query(trc)?;
 

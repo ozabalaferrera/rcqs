@@ -1,6 +1,7 @@
 /target/
 /test-utils/target/
 /.vscode/
+/coverage/
 
 .env
 Cargo.lock
